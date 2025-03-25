@@ -1,0 +1,43 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+logs/
+*.log
+
+# Build files
+dist/
+build/
+
+# React/Vite specific
+.vite/
+.vitepress/cache/
+*.cache
+
+# Editor/IDE files
+.vscode/
+.idea/
+.DS_Store
+
+# OS files
+Thumbs.db
+
+# Miscellaneous
+coverage/
+public/static/
+*.swp
+*.swo
+
+# MongoDB dump
+/dump/
+
+# Dependencies
+**/node_modules/
+**/package-lock.json
+**/yarn.lock
