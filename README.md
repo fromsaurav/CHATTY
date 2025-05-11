@@ -85,7 +85,7 @@ npm run install:all
 Create a **.env** file in the **backend** directory and add:
 ```env
 PORT=4000
-MONGO_URI=your_mongodb_connection_string
+MONGODB_URI=your_mongodb_connection_string
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
