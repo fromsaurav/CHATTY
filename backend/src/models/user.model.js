@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
-
 const userSchema = new mongoose.Schema(
   {
     fullName: {
@@ -30,6 +29,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    firebaseUid: {
+      type: String,
+      default: null,
+    }
   },
   { timestamps: true }
 );
