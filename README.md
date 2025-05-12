@@ -2,6 +2,11 @@
 
 Chatty is a modern real-time chat application built using the **MERN stack** with **Socket.io** for instant communication. It features a sleek UI powered by **TailwindCSS** and **Daisy UI**, ensuring a smooth and responsive user experience.
 
+## 🔗 Live Demo
+
+**Frontend:** [chatty-eight-zeta.vercel.app](https://chatty-eight-zeta.vercel.app)  
+**Backend API:** [chatty-tn4i.onrender.com](https://chatty-tn4i.onrender.com)
+
 ---
 
 ## 🏆 Problem Statement
@@ -65,6 +70,11 @@ Chatty is designed to address these limitations by providing a **fully interacti
 ### 📌 State Management:
 - Zustand
 
+### 📌 Deployment:
+- Frontend: Vercel
+- Backend: Render
+- Database: MongoDB Atlas
+
 ---
 
 ## 📦 Installation & Setup
@@ -82,22 +92,43 @@ npm run install:all
 ```
 
 ### 3️⃣ Configure Environment Variables
-Create a **.env** file in the **backend** directory and add:
+
+#### Backend (.env file in backend directory):
 ```env
 PORT=4000
 MONGODB_URI=your_mongodb_connection_string
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
-JWT_SECRET_KEY=your_jwt_secret
+JWT_SECRET=your_jwt_secret
 SOCKET_IO_URL=http://localhost:4000
+FRONTEND_URL=http://localhost:5173
 ```
 
-### 4️⃣ Run the Project
+#### Frontend (for development):
+Create a `.env` file in the frontend directory:
+```env
+VITE_API_URL=http://localhost:4000/api
+VITE_SOCKET_URL=http://localhost:4000
+```
+
+#### Frontend (for production):
+When deploying to Vercel, add these environment variables in the Vercel dashboard:
+```env
+VITE_API_URL=https://chatty-tn4i.onrender.com/api
+VITE_SOCKET_URL=https://chatty-tn4i.onrender.com
+```
+
+### 4️⃣ Run the Project Locally
+
 #### Start the Backend:
 ```sh
-npm run start or nodemon index
+cd backend
+npm run start
+# or
+nodemon index
 ```
+
 #### Start the Frontend:
 ```sh
 cd frontend
@@ -108,6 +139,24 @@ npm run dev
 ```sh
 http://localhost:5173
 ```
+
+## 🚀 Deployment Instructions
+
+### Backend Deployment (Render):
+1. Create a new Web Service on Render
+2. Connect your GitHub repository
+3. Configure the following settings:
+   - Build Command: `npm install`
+   - Start Command: `node src/index.js`
+4. Add all environment variables from your backend `.env` file
+5. Set `FRONTEND_URL` to your Vercel frontend URL
+
+### Frontend Deployment (Vercel):
+1. Import your project into Vercel
+2. Configure the following environment variables:
+   - `VITE_API_URL`: Your Render backend URL + `/api`
+   - `VITE_SOCKET_URL`: Your Render backend URL
+3. Deploy your application
 
 ---
 
@@ -129,11 +178,10 @@ We welcome contributions! To contribute:
 5. **Create a Pull Request**.
 
 ---
----
 
 ## 📩 Contact  
 🔗 **GitHub:** [fromsaurav](https://github.com/fromsaurav)  
-📧 **Email:** telisaurav44@gmail.com 
+📧 **Email:** telisaurav44@gmail.com  
 💼 **LinkedIn:** [Saurav Teli](https://www.linkedin.com/in/saurav-teli-89a27a263)  
 
 ---
