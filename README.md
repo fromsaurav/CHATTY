@@ -21,6 +21,89 @@ In today's digital world, communication plays a crucial role in personal and pro
 - **Inefficient state management**, leading to performance issues.
 
 ### 🚀 Proposed Solution
+Chatty is designed to address these limitations by providing a **fully interactive** chat experience with real-time updates, secure authentication via **Firebase**, media sharing, and customizable themes.
+
+---
+
+## 🎯 Key Features & Functionalities
+
+### ✉️ **Messaging & Communication**
+✅ **Real-time Messaging:** Instant chat powered by **Socket.io**.  
+✅ **Text & Multimedia Support:** Send messages in **text, attachments, and audio** formats.  
+✅ **Audio Recording:** Record and share voice messages seamlessly.  
+✅ **Message Controls:** Forward, share, delete, and reply to messages.  
+✅ **Chat Search:** Quickly find past conversations.  
+
+### 🔐 **Security & Authentication**
+✅ **Firebase Authentication:** Secure login/signup using **Email & Password** and **Google Sign-In**.  
+✅ **JWT Authorization:** Once authenticated, users are issued a secure JWT token for protected API access.  
+
+### 🌐 **User Experience & Interface**
+✅ **Active Users Display:** See online users in real-time.  
+✅ **Custom Themes:** Switch between various color themes.  
+✅ **Profile Customization:** Edit your profile and update details with ease.  
+✅ **Global State Management:** Efficient state handling using **Zustand**.  
+
+---
+
+## 🛠️ Tech Stack
+
+### 📌 Frontend:
+- React.js
+- TailwindCSS
+- Daisy UI
+
+### 📌 Backend:
+- Node.js
+- Express.js
+
+### 📌 Database:
+- MongoDB (Mongoose)
+
+### 📌 Real-Time Communication:
+- Socket.io
+
+### 📌 Authentication & Authorization:
+- Firebase (Email/Password & Google Sign-In)
+- JSON Web Token (JWT) for securing APIs
+
+### 📌 State Management:
+- Zustand
+
+### 📌 Deployment:
+- Frontend: Vercel
+- Backend: Render
+- Database: MongoDB Atlas
+
+---
+
+## 📦 Installation & Setup
+
+### 1️⃣ Clone the Repository
+```sh
+git clone https://github.com/fromsaurav/Chatt# 📢 Chatty - Real-Time Chat Application
+
+Chatty is a modern real-time chat application built using the **MERN stack** with **Socket.io** for instant communication. It features a sleek UI powered by **TailwindCSS** and **Daisy UI**, ensuring a smooth and responsive user experience.
+
+## 🔗 Live Demo
+
+**Frontend:** [chatty-eight-zeta.vercel.app](https://chatty-eight-zeta.vercel.app)  
+**Backend API:** [chatty-tn4i.onrender.com](https://chatty-tn4i.onrender.com)
+
+---
+
+## 🏆 Problem Statement
+
+In today's digital world, communication plays a crucial role in personal and professional life. Existing messaging apps often lack customization, real-time features, and easy accessibility across different devices. Additionally, users require secure authentication, multimedia sharing, and real-time engagement.
+
+### 🔍 Challenges in Existing Solutions
+- Lack of **real-time interactivity** in many chat applications.
+- **Limited multimedia support** (text-only or basic file sharing).
+- **Poor authentication mechanisms**, making apps prone to security risks.
+- **Limited user control** over messages (editing, forwarding, deleting, replying).
+- **Inefficient state management**, leading to performance issues.
+
+### 🚀 Proposed Solution
 Chatty is designed to address these limitations by providing a **fully interactive** chat experience with real-time updates, secure authentication, media sharing, and customizable themes.
 
 ---
@@ -82,6 +165,7 @@ Chatty is designed to address these limitations by providing a **fully interacti
 ### 1️⃣ Clone the Repository
 ```sh
 git clone https://github.com/fromsaurav/Chatty.git
+cd Chattyy.git
 cd Chatty
 ```
 
@@ -140,23 +224,6 @@ npm run dev
 http://localhost:5173
 ```
 
-## 🚀 Deployment Instructions
-
-### Backend Deployment (Render):
-1. Create a new Web Service on Render
-2. Connect your GitHub repository
-3. Configure the following settings:
-   - Build Command: `npm install`
-   - Start Command: `node src/index.js`
-4. Add all environment variables from your backend `.env` file
-5. Set `FRONTEND_URL` to your Vercel frontend URL
-
-### Frontend Deployment (Vercel):
-1. Import your project into Vercel
-2. Configure the following environment variables:
-   - `VITE_API_URL`: Your Render backend URL + `/api`
-   - `VITE_SOCKET_URL`: Your Render backend URL
-3. Deploy your application
 
 ---
 
