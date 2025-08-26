@@ -81,11 +81,30 @@ export const useChatStore = create((set, get) => ({
         await new Promise(resolve => setTimeout(resolve, 300));
       }
       
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm' // More compatible format
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          sampleRate: 44100, // Good quality
+          channelCount: 1, // Mono to save space
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
       });
-      const audioChunks = [];
+      
+      // Try to use the best available format with compression
+      let options = {};
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        options.mimeType = 'audio/webm;codecs=opus';
+        options.audioBitsPerSecond = 96000; // Good quality but compressed
+      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+        options.mimeType = 'audio/webm';
+        options.audioBitsPerSecond = 96000;
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        options.mimeType = 'audio/mp4';
+        options.audioBitsPerSecond = 96000;
+      }
+      
+      const mediaRecorder = new MediaRecorder(stream, options);
       
       mediaRecorder.addEventListener("dataavailable", (event) => {
         if (event.data.size > 0) {
@@ -145,42 +164,53 @@ export const useChatStore = create((set, get) => ({
   },
   
   stopRecording: () => {
-    const { audioRecorder, audioChunks } = get();
+    const { audioRecorder } = get();
     if (audioRecorder && audioRecorder.state !== "inactive") {
-      try {
-        audioRecorder.stop();
-        
-        // Process the audio data after stopping
-        if (audioChunks.length > 0) {
-          const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
-          const reader = new FileReader();
-          reader.readAsDataURL(audioBlob);
-          reader.onloadend = () => {
-            const base64data = reader.result;
-            
-            // Send the audio message
-            get().sendMessage({
-              attachment: {
-                data: base64data,
-                type: "audio",
-                filename: `audio_${new Date().getTime()}.webm`
-              }
-            });
+      return new Promise((resolve, reject) => {
+        try {
+          // Set up the data available handler before stopping
+          const handleDataAvailable = (event) => {
+            if (event.data.size > 0) {
+              const allChunks = [...get().audioChunks, event.data];
+              
+              // Create audio blob with the same MIME type used for recording
+              const mimeType = audioRecorder.mimeType || "audio/webm;codecs=opus";
+              const audioBlob = new Blob(allChunks, { type: mimeType });
+              
+              // Clean up and resolve
+              set({ 
+                isRecording: false,
+                audioRecorder: null,
+                isPaused: false,
+                audioChunks: []
+              });
+              
+              resolve(audioBlob);
+            } else {
+              reject(new Error("No audio data recorded"));
+            }
           };
+          
+          // Add the event handler
+          audioRecorder.addEventListener("dataavailable", handleDataAvailable, { once: true });
+          
+          // Stop recording
+          audioRecorder.stop();
+          
+        } catch (error) {
+          console.error("Error stopping recording:", error);
+          set({ 
+            isRecording: false,
+            audioRecorder: null,
+            isPaused: false,
+            audioChunks: []
+          });
+          reject(error);
         }
-        
-        // Reset audio chunks
-        set({ audioChunks: [] });
-      } catch (error) {
-        console.error("Error stopping recording:", error);
-        set({ 
-          isRecording: false,
-          audioRecorder: null,
-          isPaused: false, // Reset pause state
-          audioChunks: []
-        });
-      }
+      });
     }
+    
+    return Promise.resolve(null);
   },
   
   cancelRecording: () => {
@@ -309,11 +339,35 @@ export const useChatStore = create((set, get) => ({
     });
   },
 
+  // Subscribe to user-related events
+  subscribeToUserEvents: () => {
+    const socket = useAuthStore.getState().socket;
+
+    if (!socket) {
+      console.warn("Socket not available for user event subscription");
+      return;
+    }
+
+    // Listen for new user registration events
+    socket.on("newUserRegistered", (newUser) => {
+      set(state => ({
+        users: [...state.users, newUser]
+      }));
+    });
+  },
+
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
     if (socket) {
       socket.off("newMessage");
       socket.off("messageDeleted");
+    }
+  },
+
+  unsubscribeFromUserEvents: () => {
+    const socket = useAuthStore.getState().socket;
+    if (socket) {
+      socket.off("newUserRegistered");
     }
   },
 

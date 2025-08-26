@@ -3,7 +3,7 @@ import { axiosInstance } from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
 
-const BASE_URL = import.meta.env.MODE === "production" ? "https://chatty-tn4i.onrender.com/api" : "/";
+const BASE_URL = import.meta.env.MODE === "production" ? "https://chatty-tn4i.onrender.com" : "http://localhost:4000";
 
 export const useAuthStore = create((set, get) => ({
   authUser: null,
@@ -54,12 +54,12 @@ export const useAuthStore = create((set, get) => ({
     try {
       const res = await axiosInstance.post("/auth/complete-signup", userData);
       set({ authUser: res.data });
-      toast.success("Signup successful!");
+      toast.success("Account created successfully!");
       get().connectSocket();
       return true;
     } catch (error) {
       console.error("Error in verifyOtpAndSignUp:", error);
-      toast.error(error.response?.data?.message || "Email verification failed");
+      toast.error(error.response?.data?.message || "OTP verification failed");
       return false;
     } finally {
       set({ isVerifyingOtp: false });
@@ -102,21 +102,39 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  // Google Authentication
-  googleAuth: async (idToken) => {
+  // Google Login - Only for existing users
+  googleLogin: async (idToken) => {
     set({ isLoggingIn: true });
     try {
-      const res = await axiosInstance.post("/auth/google-auth", { idToken });
+      const res = await axiosInstance.post("/auth/google-login", { idToken });
       set({ authUser: res.data });
       toast.success("Logged in successfully");
       get().connectSocket();
       return true;
     } catch (error) {
-      console.error("Error in googleAuth:", error);
-      toast.error(error.response?.data?.message || "Google authentication failed");
+      console.error("Error in googleLogin:", error);
+      toast.error(error.response?.data?.message || "Google login failed");
       return false;
     } finally {
       set({ isLoggingIn: false });
+    }
+  },
+
+  // Google Signup - Only for new users
+  googleSignup: async (idToken) => {
+    set({ isSigningUp: true });
+    try {
+      const res = await axiosInstance.post("/auth/google-signup", { idToken });
+      set({ authUser: res.data });
+      toast.success("Account created successfully");
+      get().connectSocket();
+      return true;
+    } catch (error) {
+      console.error("Error in googleSignup:", error);
+      toast.error(error.response?.data?.message || "Google signup failed");
+      return false;
+    } finally {
+      set({ isSigningUp: false });
     }
   },
 

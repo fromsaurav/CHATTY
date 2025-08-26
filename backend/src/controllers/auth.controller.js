@@ -1,12 +1,12 @@
 import { generateToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
+import OTP from "../models/otp.model.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import cloudinary from "../lib/cloudinary.js";
+import { io } from "../lib/socket.js";
+import { sendOTPEmail } from "../lib/emailService.js";
 import { 
-  sendSignInLinkToEmail, 
-  isSignInWithEmailLink, 
-  signInWithEmailLink, 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
@@ -53,7 +53,7 @@ const handleControllerError = (error, res, controllerName) => {
   return res.status(500).json({ message: "Internal Server Error" });
 };
 
-// Function to send OTP link to email
+// Function to send OTP to email
 export const sendOtp = async (req, res) => {
   const { email } = req.body;
   
@@ -62,39 +62,58 @@ export const sendOtp = async (req, res) => {
       return res.status(400).json({ message: "Email is required" });
     }
     
+    // Validate email format
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Please enter a valid email address" });
+    }
+    
     // Check if user already exists in your database
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "User with this email already exists" });
     }
     
-    // URL to redirect to after email verification
-    const actionCodeSettings = {
-      url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verifyOtpAndSignUp?email=${encodeURIComponent(email)}`,
-      handleCodeInApp: true,
-    };
-
-    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
     
-    // Store email in a temporary session or token for the next step
-    // This would typically be done client-side, but we can also store temporarily on server
+    // Delete any existing OTPs for this email
+    await OTP.deleteMany({ email });
+    
+    // Save OTP to database
+    const newOTP = new OTP({
+      email,
+      otp,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+    });
+    
+    await newOTP.save();
+    
+    // Send OTP via email
+    const emailResult = await sendOTPEmail(email, otp);
+    
+    if (!emailResult.success) {
+      return res.status(500).json({ message: "Failed to send OTP email. Please try again." });
+    }
     
     res.status(200).json({ 
       success: true, 
-      message: "Verification email sent. Check your inbox!" 
+      message: "OTP sent to your email. Please check your inbox and enter the 6-digit code.",
+      // In development, you can include the preview URL
+      ...(process.env.NODE_ENV === "development" && { previewUrl: emailResult.previewUrl })
     });
   } catch (error) {
-    console.error("Error sending email verification:", error);
+    console.error("Error sending OTP:", error);
     handleControllerError(error, res, "sendOtp controller");
   }
 };
 
 // Complete signup with email OTP
 export const completeSignupWithOtp = async (req, res) => {
-  const { email, fullName, password, emailLink } = req.body;
+  const { email, fullName, password, otp } = req.body;
   
   try {
-    if (!email || !fullName || !password || !emailLink) {
+    if (!email || !fullName || !password || !otp) {
       return res.status(400).json({ message: "All fields are required" });
     }
     
@@ -102,24 +121,52 @@ export const completeSignupWithOtp = async (req, res) => {
       return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
     
-    // Verify the email link
-    if (!isSignInWithEmailLink(auth, emailLink)) {
-      return res.status(400).json({ message: "Invalid or expired verification link" });
+    if (otp.length !== 6) {
+      return res.status(400).json({ message: "OTP must be 6 digits" });
     }
     
-    // Sign in with email link
-    const userCredential = await signInWithEmailLink(auth, email, emailLink);
+    // Find and verify OTP
+    const otpRecord = await OTP.findOne({ 
+      email, 
+      otp,
+      verified: false,
+      expiresAt: { $gt: new Date() }
+    });
     
-    // If successful, create user in your database
+    if (!otpRecord) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+    
+    // Check if user already exists (double-check)
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User with this email already exists" });
+    }
+    
+    // Mark OTP as verified
+    otpRecord.verified = true;
+    await otpRecord.save();
+    
+    // Create user in database
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({
       fullName,
       email,
       password: hashedPassword,
-      firebaseUid: userCredential.user.uid
     });
     
     await newUser.save();
+    
+    // Clean up used OTP
+    await OTP.deleteMany({ email });
+    
+    // Emit socket event for new user registration
+    io.emit("newUserRegistered", {
+      _id: newUser._id,
+      fullName: newUser.fullName,
+      email: newUser.email,
+      profilePic: newUser.profilePic,
+    });
     
     // Generate token for the new user
     generateToken(newUser._id, res, { httpOnly: true, secure: true, sameSite: "strict" });
@@ -167,6 +214,14 @@ export const signupWithPassword = async (req, res) => {
     });
     
     await newUser.save();
+    
+    // Emit socket event for new user registration
+    io.emit("newUserRegistered", {
+      _id: newUser._id,
+      fullName: newUser.fullName,
+      email: newUser.email,
+      profilePic: newUser.profilePic,
+    });
     
     // Generate token for the new user
     generateToken(newUser._id, res, { httpOnly: true, secure: true, sameSite: "strict" });
@@ -220,8 +275,8 @@ export const login = async (req, res) => {
   }
 };
 
-// Google Sign In/Up
-export const googleAuth = async (req, res) => {
+// Google Sign In (Login) - Only for existing users
+export const googleLogin = async (req, res) => {
   const { idToken } = req.body;
   
   try {
@@ -237,22 +292,16 @@ export const googleAuth = async (req, res) => {
     const { user } = userCredential;
     
     // Check if user exists in database
-    let dbUser = await User.findOne({ email: user.email });
+    const dbUser = await User.findOne({ email: user.email });
     
     if (!dbUser) {
-      // Create new user in database if doesn't exist
-      const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
-      dbUser = new User({
-        fullName: user.displayName || 'Google User',
-        email: user.email,
-        password: hashedPassword, // Random secure password
-        profilePic: user.photoURL || '',
-        firebaseUid: user.uid
+      return res.status(400).json({ 
+        message: "No account found with this Google account. Please sign up first." 
       });
-      
-      await dbUser.save();
-    } else if (!dbUser.firebaseUid) {
-      // Update Firebase UID if user exists but doesn't have it
+    }
+    
+    // Update Firebase UID if user exists but doesn't have it
+    if (!dbUser.firebaseUid) {
       dbUser.firebaseUid = user.uid;
       if (user.photoURL && !dbUser.profilePic) {
         dbUser.profilePic = user.photoURL;
@@ -270,7 +319,66 @@ export const googleAuth = async (req, res) => {
       profilePic: dbUser.profilePic,
     });
   } catch (error) {
-    handleControllerError(error, res, "googleAuth controller");
+    handleControllerError(error, res, "googleLogin controller");
+  }
+};
+
+// Google Sign Up - Only for new users
+export const googleSignup = async (req, res) => {
+  const { idToken } = req.body;
+  
+  try {
+    if (!idToken) {
+      return res.status(400).json({ message: "ID token is required" });
+    }
+    
+    // Create Google credential
+    const googleCredential = GoogleAuthProvider.credential(idToken);
+    
+    // Sign in to Firebase with Google credential
+    const userCredential = await signInWithCredential(auth, googleCredential);
+    const { user } = userCredential;
+    
+    // Check if user already exists in database
+    const existingUser = await User.findOne({ email: user.email });
+    
+    if (existingUser) {
+      return res.status(400).json({ 
+        message: "Account with this Google email already exists. Please login instead." 
+      });
+    }
+    
+    // Create new user in database
+    const hashedPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+    const newUser = new User({
+      fullName: user.displayName || 'Google User',
+      email: user.email,
+      password: hashedPassword, // Random secure password
+      profilePic: user.photoURL || '',
+      firebaseUid: user.uid
+    });
+    
+    await newUser.save();
+    
+    // Emit socket event for new user registration
+    io.emit("newUserRegistered", {
+      _id: newUser._id,
+      fullName: newUser.fullName,
+      email: newUser.email,
+      profilePic: newUser.profilePic,
+    });
+    
+    // Generate JWT token
+    generateToken(newUser._id, res, { httpOnly: true, secure: true, sameSite: "strict" });
+    
+    res.status(201).json({
+      _id: newUser._id,
+      fullName: newUser.fullName,
+      email: newUser.email,
+      profilePic: newUser.profilePic,
+    });
+  } catch (error) {
+    handleControllerError(error, res, "googleSignup controller");
   }
 };
 

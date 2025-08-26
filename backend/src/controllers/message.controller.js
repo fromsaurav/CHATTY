@@ -45,7 +45,10 @@ export const sendMessage = async (req, res) => {
     
     if (attachment && attachment.data) {
       try {
-        console.log(`Uploading ${attachment.type} to Cloudinary...`);
+        // Log attachment size for debugging
+        const attachmentSizeKB = Math.round(attachment.data.length / 1024);
+        const attachmentSizeMB = Math.round(attachmentSizeKB / 1024 * 100) / 100;
+        console.log(`Uploading ${attachment.type} to Cloudinary... Size: ${attachmentSizeKB} KB (${attachmentSizeMB} MB)`);
         
         // Determine resource type for Cloudinary based on attachment type
         let resourceType = "auto";
@@ -57,27 +60,90 @@ export const sendMessage = async (req, res) => {
         // Set folder name based on attachment type
         const folder = `chat_${attachment.type}s`;
         
-        // Upload to Cloudinary with appropriate resource type
-        const uploadPromise = cloudinary.uploader.upload(attachment.data, {
+        // Upload to Cloudinary with appropriate resource type and increased limits
+        const uploadOptions = {
           folder,
           resource_type: resourceType,
-          timeout: 120000, // 2 minutes timeout for larger files
-        });
-        
-        const uploadResponse = await uploadPromise;
-        
-        attachmentData = {
-          url: uploadResponse.secure_url,
-          type: attachment.type,
-          filename: attachment.filename || "file"
+          timeout: 300000, // 5 minutes timeout for larger files
         };
         
-        console.log(`${attachment.type} uploaded successfully:`, uploadResponse.secure_url);
-      }  catch (cloudinaryError) {
+        // Add specific options for audio files
+        if (attachment.type === "audio") {
+          uploadOptions.chunk_size = 6000000; // 6MB chunks for large audio files
+        }
+        
+        // Add quality optimization for video/audio
+        if (attachment.type === "video" || attachment.type === "audio") {
+          uploadOptions.quality = "auto:good"; // Optimize quality vs size
+        }
+        
+        // Convert data URL to buffer for better Cloudinary compatibility
+        let uploadData = attachment.data;
+        
+        // If it's a data URL, extract the base64 part and convert to buffer
+        if (attachment.data.startsWith('data:') && attachment.data.includes(',')) {
+          const base64Data = attachment.data.split(',')[1];
+          const buffer = Buffer.from(base64Data, 'base64');
+          
+          // Use upload_stream for binary data instead of upload
+          const uploadPromise = new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+              uploadOptions,
+              (error, result) => {
+                if (error) {
+                  reject(error);
+                } else {
+                  resolve(result);
+                }
+              }
+            );
+            uploadStream.end(buffer);
+          });
+          
+          const uploadResponse = await uploadPromise;
+          
+          attachmentData = {
+            url: uploadResponse.secure_url,
+            type: attachment.type,
+            filename: attachment.filename || "file"
+          };
+          
+          console.log(`${attachment.type} uploaded successfully:`, uploadResponse.secure_url);
+        } else {
+          // Fallback to regular upload for non-data URLs
+          const uploadPromise = cloudinary.uploader.upload(uploadData, uploadOptions);
+          const uploadResponse = await uploadPromise;
+          
+          attachmentData = {
+            url: uploadResponse.secure_url,
+            type: attachment.type,
+            filename: attachment.filename || "file"
+          };
+          
+          console.log(`${attachment.type} uploaded successfully:`, uploadResponse.secure_url);
+        }
+      } catch (cloudinaryError) {
         console.error("Cloudinary upload error:", cloudinaryError);
-        return res.status(400).json({ 
-          message: `Failed to upload ${attachment.type}. Please try again with a smaller file.`
+        console.error("Error details:", {
+          message: cloudinaryError.message,
+          http_code: cloudinaryError.http_code,
+          error: cloudinaryError.error
         });
+        
+        // Handle specific Cloudinary errors
+        let errorMessage = `Failed to upload ${attachment.type}.`;
+        
+        if (cloudinaryError.http_code === 413 || cloudinaryError.message?.includes("File size too large")) {
+          errorMessage = `${attachment.type} file is too large. Maximum size allowed is 100MB.`;
+        } else if (cloudinaryError.http_code === 400) {
+          errorMessage = `Invalid ${attachment.type} file format. Please try a different file.`;
+        } else if (cloudinaryError.message?.includes("timeout") || cloudinaryError.code === 'ETIMEDOUT') {
+          errorMessage = `Upload timeout. Please try again with a smaller ${attachment.type} file.`;
+        } else {
+          errorMessage = `Failed to upload ${attachment.type}. Please try again.`;
+        }
+        
+        return res.status(400).json({ message: errorMessage });
       }
     }
     

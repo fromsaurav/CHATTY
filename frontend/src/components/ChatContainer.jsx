@@ -154,12 +154,17 @@ const ChatContainer = () => {
     element.onloadedmetadata = null;
     element.ontimeupdate = null;
     element.onended = null;
+    element.oncanplay = null;
+    element.onloadeddata = null;
 
     // Only set up event listeners if they haven't been set up before
     if (!audioMetadataLoaded.current[messageId]) {
-      // Load metadata to get duration
-      element.onloadedmetadata = () => {
-        if (isFinite(element.duration)) {
+      // Force load the audio metadata
+      element.load();
+      
+      // Multiple event handlers to ensure we get the duration
+      const handleMetadataLoaded = () => {
+        if (isFinite(element.duration) && element.duration > 0) {
           setAudioDurations((prev) => ({
             ...prev,
             [messageId]: element.duration,
@@ -169,25 +174,28 @@ const ChatContainer = () => {
         }
       };
 
+      element.onloadedmetadata = handleMetadataLoaded;
+      element.oncanplay = handleMetadataLoaded;
+      element.onloadeddata = handleMetadataLoaded;
+
       // Update progress during playback
       element.ontimeupdate = () => {
-        if (element === audioRefs.current[messageId]) {
-          // Make sure it's still the same element
+        if (element === audioRefs.current[messageId] && element.duration > 0) {
+          const progress = element.currentTime / element.duration;
           setAudioProgress((prev) => ({
             ...prev,
-            [messageId]: element.currentTime / (element.duration || 1),
+            [messageId]: progress,
           }));
-
-          // Force re-render for time display
-          setPlayingAudio((oldId) => {
-            if (oldId === messageId) return messageId; // Same value triggers re-render
-            return oldId;
-          });
         }
       };
 
       // Handle audio ended
       element.onended = () => handleAudioEnded(messageId);
+      
+      // Try to load duration immediately if already available
+      if (element.readyState >= 1 && element.duration > 0) {
+        handleMetadataLoaded();
+      }
     }
   };
 
@@ -401,11 +409,11 @@ const ChatContainer = () => {
                 </div>
 
                 {/* Audio Time Display */}
-                <div className="text-xs font-medium whitespace-nowrap min-w-12 text-right">
-                  {playingAudio === messageId
+                <div className="text-xs font-medium whitespace-nowrap min-w-16 text-right">
+                  {playingAudio === messageId && audioRefs.current[messageId]
                     ? `${formatTime(
-                        audioRefs.current[messageId]?.currentTime || 0
-                      )} / ${formatTime(audioDurations[messageId] || 0)}`
+                        audioRefs.current[messageId].currentTime || 0
+                      )} / ${formatTime(audioDurations[messageId] || audioRefs.current[messageId].duration || 0)}`
                     : `0:00 / ${formatTime(audioDurations[messageId] || 0)}`}
                 </div>
 

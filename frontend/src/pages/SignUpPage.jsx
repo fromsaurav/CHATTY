@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare, User, ArrowRight, Shield } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import { GoogleAuthProvider, signInWithPopup, isSignInWithEmailLink } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "../lib/firebaseConfig";
 import AuthImagePattern from "../components/AuthImagePattern";
 import toast from "react-hot-toast";
@@ -14,7 +14,7 @@ const SignUpPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [signupMethod, setSignupMethod] = useState(isOtpVerification ? "otp" : "password"); // "password" or "otp"
   const [step, setStep] = useState(1); // 1: initial form, 2: OTP verification
-  const [emailLink, setEmailLink] = useState("");
+  const [otp, setOtp] = useState("");
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -25,26 +25,23 @@ const SignUpPage = () => {
     signupWithPassword, 
     sendOtp, 
     verifyOtpAndSignUp, 
-    googleAuth,
+    googleSignup,
     isSigningUp, 
     isSendingOtp,
     isVerifyingOtp 
   } = useAuthStore();
 
-  // Check if this is an email sign-in link on component mount
+  // Check if this is OTP verification route
   useEffect(() => {
-    if (isSignInWithEmailLink(auth, window.location.href)) {
-      const email = new URLSearchParams(window.location.search).get('email') || localStorage.getItem('emailForSignIn');
+    if (isOtpVerification) {
+      const email = new URLSearchParams(location.search).get('email') || localStorage.getItem('emailForSignIn');
       if (email) {
         setFormData(prev => ({...prev, email}));
-        setEmailLink(window.location.href);
         setStep(2);
         setSignupMethod("otp");
-      } else {
-        toast.error("Could not find email for verification");
       }
     }
-  }, []);
+  }, [isOtpVerification, location]);
 
   const validateForm = () => {
     if (!formData.fullName.trim()) return toast.error("Full name is required");
@@ -68,24 +65,27 @@ const SignUpPage = () => {
       await signupWithPassword(formData);
     } else if (signupMethod === "otp" && step === 1) {
       // Step 1: Send OTP
-      // Store email in localStorage before sending OTP
       localStorage.setItem('emailForSignIn', formData.email);
       const success = await sendOtp(formData.email);
       if (success) {
         setStep(2);
-        toast.success("Please check your email for the verification link");
+        toast.success("OTP sent to your email. Please check your inbox.");
       }
     } else if (signupMethod === "otp" && step === 2) {
       // Step 2: Complete signup with OTP
-      if (!emailLink) {
-        return toast.error("Please paste the verification link from your email");
+      if (!otp) {
+        return toast.error("Please enter the 6-digit OTP");
+      }
+      
+      if (otp.length !== 6) {
+        return toast.error("OTP must be 6 digits");
       }
       
       await verifyOtpAndSignUp({
         email: formData.email,
         fullName: formData.fullName,
-        password: formData.password || "", // Password may be optional with OTP
-        emailLink: emailLink
+        password: formData.password,
+        otp: otp
       });
     }
   };
@@ -97,7 +97,7 @@ const SignUpPage = () => {
       const credential = GoogleAuthProvider.credentialFromResult(result);
       
       if (credential) {
-        await googleAuth(credential.idToken);
+        await googleSignup(credential.idToken);
       }
     } catch (error) {
       console.error("Google sign up error:", error);
@@ -219,17 +219,40 @@ const SignUpPage = () => {
             ) : (
               <div className="form-control">
                 <label className="label">
-                  <span className="label-text font-medium">Verification Link</span>
-                  <span className="label-text-alt">Check your email</span>
+                  <span className="label-text font-medium">Enter OTP</span>
+                  <span className="label-text-alt">Check your email for 6-digit code</span>
                 </label>
                 <div className="relative">
-                  <textarea
-                    className="textarea textarea-bordered w-full"
-                    placeholder="Paste the verification link from your email here"
-                    value={emailLink}
-                    onChange={(e) => setEmailLink(e.target.value)}
-                    rows={3}
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Shield className="h-5 w-5 text-base-content/40" />
+                  </div>
+                  <input
+                    type="text"
+                    className="input input-bordered w-full pl-10 text-center text-2xl font-mono tracking-widest"
+                    placeholder="000000"
+                    value={otp}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      setOtp(value);
+                    }}
+                    maxLength={6}
                   />
+                </div>
+                <div className="text-center mt-2">
+                  <p className="text-sm text-base-content/60">
+                    Didn't receive the code?{" "}
+                    <button 
+                      type="button" 
+                      onClick={async () => {
+                        const success = await sendOtp(formData.email);
+                        if (success) toast.success("OTP sent again!");
+                      }}
+                      className="link link-primary"
+                      disabled={isSendingOtp}
+                    >
+                      Resend OTP
+                    </button>
+                  </p>
                 </div>
               </div>
             )}
@@ -246,7 +269,7 @@ const SignUpPage = () => {
                 </>
               ) : step === 1 && signupMethod === "otp" ? (
                 <>
-                  Send Verification Link <ArrowRight className="size-4" />
+                  Send OTP <ArrowRight className="size-4" />
                 </>
               ) : step === 2 ? (
                 "Complete Signup"

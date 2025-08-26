@@ -13,7 +13,7 @@ const LoginPage = () => {
     email: "",
     password: "",
   });
-  const { login, googleAuth, isLoggingIn } = useAuthStore();
+  const { login, googleLogin, isLoggingIn } = useAuthStore();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,7 +32,7 @@ const LoginPage = () => {
       const credential = GoogleAuthProvider.credentialFromResult(result);
       
       if (credential) {
-        await googleAuth(credential.idToken);
+        await googleLogin(credential.idToken);
       }
     } catch (error) {
       console.error("Google login error:", error);
