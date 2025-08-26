@@ -96,7 +96,7 @@ cd ../frontend && npm install
 #### Backend Environment (.env in /backend)
 ```env
 PORT=4000
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/chatty
+MONGODB_URI=mongodb+srv://.....@cluster.mongodb.net/chatty
 JWT_SECRET=your_super_secret_jwt_key
 
 # SendGrid Email Configuration  
