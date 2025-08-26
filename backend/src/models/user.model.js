@@ -32,6 +32,10 @@ const userSchema = new mongoose.Schema(
     firebaseUid: {
       type: String,
       default: null,
+    },
+    isDemo: {
+      type: Boolean,
+      default: false,
     }
   },
   { timestamps: true }

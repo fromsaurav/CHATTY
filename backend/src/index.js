@@ -6,6 +6,7 @@ import { connectDB } from "./lib/db.js";
 import authRoutes from "./routes/auth.route.js";
 import messageRoutes from "./routes/message.route.js";
 import { app, server } from "./lib/socket.js";
+import { seedDemoUsersIfNeeded } from "./lib/seedDemoUsers.js";
 
 dotenv.config();
 
@@ -33,7 +34,10 @@ app.get("/", (req, res) => {
   res.json({ message: "API is running" });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log("server is running on PORT:" + PORT);
-  connectDB();
+  await connectDB();
+  
+  // Seed demo users for production
+  await seedDemoUsersIfNeeded();
 });

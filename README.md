@@ -93,37 +93,33 @@ cd ../frontend && npm install
 
 ### 3️⃣ Environment Configuration
 
-#### Backend Environment (.env in /backend)
-```env
-PORT=4000
-MONGODB_URI=mongodb+srv://.....@cluster.mongodb.net/chatty
-JWT_SECRET=your_super_secret_jwt_key
+#### Backend Environment Setup
+1. Copy the example environment file:
+   ```bash
+   cd backend
+   cp .env.example .env
+   ```
 
-# SendGrid Email Configuration  
-EMAIL_SERVICE=sendgrid
-SENDGRID_API_KEY=SG.your_sendgrid_api_key
-EMAIL_FROM=noreply@yourdomain.com
+2. Fill in your actual values in the `.env` file:
+   - MongoDB connection string
+   - JWT secret key
+   - SendGrid API key
+   - Cloudinary credentials
+   - Firebase configuration
+   - Other required variables
 
-# Cloudinary Media Storage
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
+#### Frontend Environment Setup
+1. Copy the example environment file:
+   ```bash
+   cd frontend
+   cp .env.example .env
+   ```
 
-# URLs
-SOCKET_IO_URL=http://localhost:4000
-FRONTEND_URL=http://localhost:5173
-```
+2. Fill in your actual values in the `.env` file:
+   - Firebase configuration
+   - API URLs (development/production)
 
-#### Frontend Environment (.env in /frontend)
-```env
-# Development
-VITE_API_URL=http://localhost:4000/api
-VITE_SOCKET_URL=http://localhost:4000
-
-# Production (for Vercel deployment)
-# VITE_API_URL=https://your-backend.onrender.com/api
-# VITE_SOCKET_URL=https://your-backend.onrender.com
-```
+**⚠️ IMPORTANT:** Never commit your `.env` files to version control. They contain sensitive information.
 
 ### 4️⃣ Run the Application
 
@@ -200,13 +196,17 @@ DELETE /api/messages/:id         # Delete message
 
 ### **Frontend Deployment (Vercel)**
 1. Connect your GitHub repository to Vercel
-2. Set environment variables in Vercel dashboard
+2. **Set environment variables in Vercel dashboard** (copy from your local `.env` file)
+   - Add all `VITE_*` variables from `frontend/.env.example`
+   - Use production URLs for API endpoints
 3. Deploy automatically on push to main branch
 
 ### **Backend Deployment (Render)**
 1. Create new Web Service on Render
 2. Connect your GitHub repository  
-3. Set environment variables in Render dashboard
+3. **Set environment variables in Render dashboard** (copy from your local `.env` file)
+   - Add all variables from `backend/.env.example`
+   - Use production database and service URLs
 4. Auto-deploy on push to main branch
 
 ### **Database Setup (MongoDB Atlas)**

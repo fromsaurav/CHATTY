@@ -1,0 +1,36 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment variables (NEVER COMMIT THESE)
+.env
+.env.local
+.env.production
+.env.staging
+
+# Logs
+logs/
+*.log
+
+# Build files
+dist/
+build/
+
+# Editor/IDE files
+.vscode/
+.idea/
+.DS_Store
+
+# OS files
+Thumbs.db
+
+# Miscellaneous
+coverage/
+*.swp
+*.swo
+
+# Dependencies
+**/node_modules/
+**/package-lock.json
+**/yarn.lock
